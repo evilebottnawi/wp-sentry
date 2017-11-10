@@ -1,9 +1,9 @@
 {
-  "name": "stayallive/wp-sentry",
+  "name": "itgalaxy/wp-sentry",
   "type": "wordpress-plugin",
   "license": "MIT",
   "description": "A (unofficial) WordPress plugin to report PHP and JavaScript errors to Sentry",
-  "homepage": "https://github.com/stayallive/wp-sentry/",
+  "homepage": "https://github.com/itgalaxy/wp-sentry/",
   "authors": [
     {
       "name": "Alex Bouma",
@@ -15,7 +15,7 @@
     "sentry"
   ],
   "support": {
-    "issues": "https://github.com/stayallive/wp-sentry/issues"
+    "issues": "https://github.com/itgalaxy/wp-sentry/issues"
   },
   "autoload": {
     "classmap": [
