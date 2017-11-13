@@ -109,7 +109,7 @@ jspm_packages
 .node_repl_history
 
 # Ignore minified files
-*.min.*
+# *.min.*
 
 # Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-task-files)
 .grunt
