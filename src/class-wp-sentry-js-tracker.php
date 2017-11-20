@@ -106,7 +106,7 @@ final class WP_Sentry_Js_Tracker extends WP_Sentry_Tracker_Base
     {
         echo sprintf(
             '<script>%s</script>',
-            file_get_contents(plugin_dir_path(WP_SENTRY_PLUGIN_FILE) . 'public/raven-3.19.1.min.js')
+            file_get_contents(plugin_dir_path(WP_SENTRY_PLUGIN_FILE) . 'public/raven-3.20.1.min.js')
         );
 
         echo sprintf(
