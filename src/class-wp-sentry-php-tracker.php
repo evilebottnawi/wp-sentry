@@ -3,192 +3,237 @@
 /**
  * WordPress Sentry PHP Tracker.
  */
-final class WP_Sentry_Php_Tracker extends WP_Sentry_Tracker_Base {
+final class WP_Sentry_Php_Tracker extends WP_Sentry_Tracker_Base
+{
+    /**
+     * Holds an instance to the sentry client.
+     *
+     * @var Raven_Client
+     */
+    protected $client;
 
-	/**
-	 * Holds an instance to the sentry client.
-	 *
-	 * @var Raven_Client
-	 */
-	protected $client;
+    /**
+     * Holds the class instance.
+     *
+     * @var WP_Sentry_Php_Tracker
+     */
+    private static $instance;
 
-	/**
-	 * Holds the class instance.
-	 *
-	 * @var WP_Sentry_Php_Tracker
-	 */
-	private static $instance;
+    /**
+     * Get the sentry tracker instance.
+     *
+     * @return WP_Sentry_Php_Tracker
+     */
+    public static function get_instance()
+    {
+        return self::$instance ?: self::$instance = new self();
+    }
 
-	/**
-	 * Get the sentry tracker instance.
-	 *
-	 * @return WP_Sentry_Php_Tracker
-	 */
-	public static function get_instance() {
-		return self::$instance ?: self::$instance = new self();
-	}
+    /**
+     * {@inheritDoc}
+     */
+    protected function bootstrap()
+    {
+        // Instantiate the client and install.
+        $this->get_client()->install()->setSendCallback([$this, 'on_send_data']);
 
-	/**
-	 * {@inheritDoc}
-	 */
-	protected function bootstrap() {
-		// Instantiate the client and install.
-		$this->get_client()->install()->setSendCallback( [ $this, 'on_send_data' ] );
+        $themes = wp_get_themes([
+            'errors' => null,
+            'allowed' => null
+        ]);
+        $sendingThemes = [];
 
-		// After the theme was setup reset the options
-		add_action( 'after_setup_theme', function () {
-			if ( has_filter( 'wp_sentry_options' ) ) {
-				$this->set_dsn( $this->get_dsn() );
-			}
-		} );
-	}
+        foreach ($themes as $themeName => $theme) {
+            $sendingThemes[$themeName] = [
+                'Name' => $theme->display('Name'),
+                'ThemeURI' => $theme->display('ThemeURI'),
+                'Description' => $theme->display('Description'),
+                'Author' => $theme->display('Author'),
+                'Version' => $theme->display('Version'),
+                'AuthorURI' => $theme->display('AuthorURI'),
+                'Status' => $theme->display('Status'),
+                'Tags' => $theme->display('Tags')
+            ];
+        }
 
-	/**
-	 * Execute login on client send data.
-	 *
-	 * @access private
-	 *
-	 * @param array $data A reference to the data being sent.
-	 *
-	 * @return bool True to send data; Otherwise false.
-	 */
-	public function on_send_data( array &$data ) {
-		if ( has_filter( 'wp_sentry_send_data' ) ) {
-			$filtered = apply_filters( 'wp_sentry_send_data', $data );
+        $this->set_extra_context([
+            'multisite' => is_multisite(),
+            'mu_plugins' => wp_get_mu_plugins(),
+            'plugins' => get_plugins(),
+            'themes' => $sendingThemes,
+            'blog_id' => get_current_blog_id(),
+            'active_theme' => (string) wp_get_theme(),
+            'language' => get_bloginfo('language')
+        ]);
 
-			if ( is_array( $filtered ) ) {
-				$data = array_merge( $data, $filtered );
-			} else {
-				return (bool) $filtered;
-			}
-		}
+        // After the theme was setup reset the options
+        add_action('after_setup_theme', function () {
+            if (has_filter('wp_sentry_options')) {
+                $this->set_dsn($this->get_dsn());
+            }
+        });
+    }
 
-		return true;
-	}
+    /**
+     * Execute login on client send data.
+     *
+     * @access private
+     *
+     * @param array $data A reference to the data being sent.
+     *
+     * @return bool True to send data; Otherwise false.
+     */
+    public function on_send_data(array &$data)
+    {
+        if (has_filter('wp_sentry_send_data')) {
+            $filtered = apply_filters('wp_sentry_send_data', $data);
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public function set_dsn( $dsn ) {
-		parent::set_dsn( $dsn );
+            if (is_array($filtered)) {
+                $data = array_merge($data, $filtered);
+            } else {
+                return (bool) $filtered;
+            }
+        }
 
-		if ( is_string( $dsn ) ) {
-			// Update Raven client
-			$options = array_merge( $this->get_options(), Raven_Client::parseDSN( $dsn ) );
-			$client  = $this->get_client();
+        return true;
+    }
 
-			foreach ( $options as $key => $value ) {
-				$client->$key = $value;
-			}
-		}
-	}
+    /**
+     * {@inheritDoc}
+     */
+    public function set_dsn($dsn)
+    {
+        parent::set_dsn($dsn);
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public function get_dsn() {
-		$dsn = parent::get_dsn();
+        if (is_string($dsn)) {
+            // Update Raven client
+            $options = array_merge($this->get_options(), Raven_Client::parseDSN($dsn));
+            $client  = $this->get_client();
 
-		if ( has_filter( 'wp_sentry_dsn' ) ) {
-			$dsn = (string) apply_filters( 'wp_sentry_dsn', $dsn );
-		}
+            foreach ($options as $key => $value) {
+                $client->$key = $value;
+            }
+        }
+    }
 
-		return $dsn;
-	}
+    /**
+     * {@inheritDoc}
+     */
+    public function get_dsn()
+    {
+        $dsn = parent::get_dsn();
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public function get_options() {
-		$options = parent::get_options();
+        if (has_filter('wp_sentry_dsn')) {
+            $dsn = (string) apply_filters('wp_sentry_dsn', $dsn);
+        }
 
-		if ( has_filter( 'wp_sentry_options' ) ) {
-			$options = (array) apply_filters( 'wp_sentry_options', $options );
-		}
+        return $dsn;
+    }
 
-		return $options;
-	}
+    /**
+     * {@inheritDoc}
+     */
+    public function get_options()
+    {
+        $options = parent::get_options();
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public function get_default_options() {
-		$options = [
-			'release'     => WP_SENTRY_VERSION,
-			'environment' => defined( 'WP_SENTRY_ENV' ) ? WP_SENTRY_ENV : 'unspecified',
-			'tags'        => [
-				'wordpress' => get_bloginfo( 'version' ),
-				'language'  => get_bloginfo( 'language' ),
-				'php'       => phpversion(),
-			],
-		];
+        if (has_filter('wp_sentry_options')) {
+            $options = (array) apply_filters('wp_sentry_options', $options);
+        }
 
-		if ( defined( 'WP_SENTRY_ERROR_TYPES' ) ) {
-			$options['error_types'] = WP_SENTRY_ERROR_TYPES;
-		}
+        return $options;
+    }
 
-		return $options;
-	}
+    /**
+     * {@inheritDoc}
+     */
+    public function get_default_options()
+    {
+        global $wpdb;
 
-	/**
-	 * Get the sentry client.
-	 *
-	 * @return Raven_Client
-	 */
-	public function get_client() {
-		return $this->client ?: $this->client = new Raven_Client(
-			$this->get_dsn(),
-			$this->get_options()
-		);
-	}
+        $options = [
+            'release' => WP_SENTRY_VERSION,
+            'environment' => defined('WP_SENTRY_ENV') ? WP_SENTRY_ENV : 'unspecified',
+            'tags' => [
+                'php' => phpversion(),
+                'mysql' => $wpdb->db_version(),
+                'wordpress' => get_bloginfo('version')
+            ]
+        ];
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public function get_context() {
-		return (array) $this->get_client()->context;
-	}
+        if (defined('WP_SENTRY_ERROR_TYPES')) {
+            $options['error_types'] = WP_SENTRY_ERROR_TYPES;
+        }
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public function set_user_context( array $data ) {
-		$this->get_client()->user_context( $data );
-	}
+        return $options;
+    }
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public function get_user_context() {
-		return $this->get_context()['user'];
-	}
+    /**
+     * Get the sentry client.
+     *
+     * @return Raven_Client
+     */
+    public function get_client()
+    {
+        return $this->client ?: $this->client = new Raven_Client(
+            $this->get_dsn(),
+            $this->get_options()
+        );
+    }
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public function set_tags_context( array $data ) {
-		$this->get_client()->tags_context( $data );
-	}
+    /**
+     * {@inheritDoc}
+     */
+    public function get_context()
+    {
+        return (array) $this->get_client()->context;
+    }
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public function get_tags_context() {
-		return $this->get_context()['tags'];
-	}
+    /**
+     * {@inheritDoc}
+     */
+    public function set_user_context(array $data)
+    {
+        $this->get_client()->user_context($data);
+    }
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public function set_extra_context( array $data ) {
-		$this->get_client()->extra_context( $data );
-	}
+    /**
+     * {@inheritDoc}
+     */
+    public function get_user_context()
+    {
+        return $this->get_context()['user'];
+    }
 
-	/**
-	 * {@inheritDoc}
-	 */
-	public function get_extra_context() {
-		return $this->get_context()['extra'];
-	}
+    /**
+     * {@inheritDoc}
+     */
+    public function set_tags_context(array $data)
+    {
+        $this->get_client()->tags_context($data);
+    }
 
+    /**
+     * {@inheritDoc}
+     */
+    public function get_tags_context()
+    {
+        return $this->get_context()['tags'];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function set_extra_context(array $data)
+    {
+        $this->get_client()->extra_context($data);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function get_extra_context()
+    {
+        return $this->get_context()['extra'];
+    }
 }

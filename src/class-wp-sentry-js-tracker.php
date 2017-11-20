@@ -3,8 +3,9 @@
 /**
  * WordPress Sentry Javascript Tracker.
  */
-final class WP_Sentry_Js_Tracker extends WP_Sentry_Tracker_Base {
 
+final class WP_Sentry_Js_Tracker extends WP_Sentry_Tracker_Base
+{
     /**
      * Holds the class instance.
      *
@@ -17,22 +18,24 @@ final class WP_Sentry_Js_Tracker extends WP_Sentry_Tracker_Base {
      *
      * @return WP_Sentry_Js_Tracker
      */
-    public static function get_instance() {
+    public static function get_instance()
+    {
         return self::$instance ?: self::$instance = new self();
     }
 
     /**
      * {@inheritDoc}
      */
-    protected function bootstrap() {
+    protected function bootstrap()
+    {
         // Register on front-end using the highest priority.
-        add_action( 'wp_head', [ $this, 'on_enqueue_scripts' ], 0, 1 );
+        add_action('wp_head', [$this, 'on_enqueue_scripts'], 0, 1);
 
         // Register on admin using the highest priority.
-        add_action( 'admin_head', [ $this, 'on_enqueue_scripts' ], 0, 1 );
+        add_action('admin_head', [$this, 'on_enqueue_scripts'], 0, 1);
 
         // Register on login using the highest priority.
-        add_action( 'login_head', [ $this, 'on_enqueue_scripts' ], 0, 1 );
+        add_action('login_head', [$this, 'on_enqueue_scripts'], 0, 1);
     }
 
     /**
@@ -40,11 +43,12 @@ final class WP_Sentry_Js_Tracker extends WP_Sentry_Tracker_Base {
      *
      * @return string
      */
-    public function get_dsn() {
+    public function get_dsn()
+    {
         $dsn = parent::get_dsn();
 
-        if ( has_filter( 'wp_sentry_public_dsn' ) ) {
-            $dsn = (string) apply_filters( 'wp_sentry_public_dsn', $dsn );
+        if (has_filter('wp_sentry_public_dsn')) {
+            $dsn = (string) apply_filters('wp_sentry_public_dsn', $dsn);
         }
 
         return $dsn;
@@ -55,22 +59,23 @@ final class WP_Sentry_Js_Tracker extends WP_Sentry_Tracker_Base {
      *
      * @return array
      */
-    public function get_options() {
+    public function get_options()
+    {
         $options = parent::get_options();
 
         // Cleanup context for JS.
         $context = $this->get_context();
 
-        foreach ( $context as $key => $value ) {
-            if ( empty( $context[ $key ] ) ) {
-                unset( $context[ $key ] );
+        foreach ($context as $key => $value) {
+            if (empty($context[$key])) {
+                unset($context[$key]);
             }
         }
 
-        $options = array_merge( $options, $context );
+        $options = array_merge($options, $context);
 
-        if ( has_filter( 'wp_sentry_public_options' ) ) {
-            $options = (array) apply_filters( 'wp_sentry_public_options', $options );
+        if (has_filter('wp_sentry_public_options')) {
+            $options = (array) apply_filters('wp_sentry_public_options', $options);
         }
 
         return $options;
@@ -80,14 +85,15 @@ final class WP_Sentry_Js_Tracker extends WP_Sentry_Tracker_Base {
      * Get sentry default options.
      * @return array
      */
-    public function get_default_options() {
+    public function get_default_options()
+    {
         return [
-            'release'     => WP_SENTRY_VERSION,
-            'environment' => defined( 'WP_SENTRY_ENV' ) ? WP_SENTRY_ENV : 'unspecified',
-            'tags'        => [
-                'wordpress' => get_bloginfo( 'version' ),
-                'language'  => get_bloginfo( 'language' ),
-            ],
+            'release' => WP_SENTRY_VERSION,
+            'environment' => defined('WP_SENTRY_ENV') ? WP_SENTRY_ENV : 'unspecified',
+            'tags' => [
+                'wordpress' => get_bloginfo('version'),
+                'language' => get_bloginfo('language')
+            ]
         ];
     }
 
@@ -96,10 +102,11 @@ final class WP_Sentry_Js_Tracker extends WP_Sentry_Tracker_Base {
      *
      * @access private
      */
-    public function on_enqueue_scripts() {
+    public function on_enqueue_scripts()
+    {
         echo sprintf(
-            '<script src="%s"></script>',
-            esc_url(plugin_dir_url( WP_SENTRY_PLUGIN_FILE ) . 'public/raven-3.19.1.min.js')
+            '<script>%s</script>',
+            file_get_contents(plugin_dir_path(WP_SENTRY_PLUGIN_FILE) . 'public/raven-3.19.1.min.js')
         );
 
         echo sprintf(
